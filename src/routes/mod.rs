@@ -1,7 +1,7 @@
 mod health;
 mod user;
 
-use crate::middleware::request_id::RequestIdLayer;
+use crate::middleware::logging_middleware::LoggingMiddlewareLayer;
 use crate::services::user::UserService;
 use axum::Router;
 use std::sync::Arc;
@@ -29,7 +29,7 @@ pub fn create_routes(user_service: Arc<UserService>) -> Router {
         .layer(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
-                .layer(RequestIdLayer::new())
+                .layer(LoggingMiddlewareLayer::new())
                 .layer(CorsLayer::permissive())
                 .into_inner(),
         )

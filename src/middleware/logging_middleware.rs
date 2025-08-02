@@ -5,32 +5,31 @@ use std::{
     task::{Context, Poll},
 };
 use tower::{Layer, Service};
-use tracing::Span;
 use uuid::Uuid;
 
 #[derive(Clone)]
-pub struct RequestIdLayer;
+pub struct LoggingMiddlewareLayer;
 
-impl RequestIdLayer {
+impl LoggingMiddlewareLayer {
     pub fn new() -> Self {
         Self
     }
 }
 
-impl<S> Layer<S> for RequestIdLayer {
-    type Service = RequestIdService<S>;
+impl<S> Layer<S> for LoggingMiddlewareLayer {
+    type Service = LoggingMiddlewareService<S>;
 
     fn layer(&self, inner: S) -> Self::Service {
-        RequestIdService { inner }
+        LoggingMiddlewareService { inner }
     }
 }
 
 #[derive(Clone)]
-pub struct RequestIdService<S> {
+pub struct LoggingMiddlewareService<S> {
     inner: S,
 }
 
-impl<S> Service<Request> for RequestIdService<S>
+impl<S> Service<Request> for LoggingMiddlewareService<S>
 where
     S: Service<Request, Response = Response> + Clone + Send + 'static,
     S::Future: Send + 'static,
@@ -45,7 +44,7 @@ where
 
     fn call(&mut self, mut req: Request) -> Self::Future {
         // Check if request already has an ID
-        let request_id = match req.headers().get("x-request-id") {
+        let correlation_id = match req.headers().get("x-correlation-id") {
             Some(header_value) => {
                 // Try to convert existing header to string
                 match header_value.to_str() {
@@ -53,7 +52,7 @@ where
                     Err(_) => {
                         // Invalid header value, generate new ID
                         let new_id = Uuid::new_v4().to_string();
-                        req.headers_mut().insert("x-request-id", new_id.parse().unwrap());
+                        req.headers_mut().insert("x-correlation-id", new_id.parse().unwrap());
                         new_id
                     }
                 }
@@ -61,15 +60,17 @@ where
             None => {
                 // No header exists, generate new ID
                 let new_id = Uuid::new_v4().to_string();
-                req.headers_mut().insert("x-request-id", new_id.parse().unwrap());
+                req.headers_mut().insert("x-correlation-id", new_id.parse().unwrap());
                 new_id
             }
         };
 
+        let request_id = Uuid::new_v4().to_string();
         // Create a tracing span that will be active for the entire request
         let span = tracing::info_span!(
             "http_request",
-            request_id = %request_id,
+            correlation_id = %correlation_id,
+            request_id= %request_id,
             method = %req.method(),
             uri = %req.uri(),
             version = ?req.version(),
@@ -106,7 +107,7 @@ where
             if let Ok(mut response) = result {
                 response
                     .headers_mut()
-                    .insert("x-request-id", request_id.parse().unwrap());
+                    .insert("x-correlation-id", correlation_id.parse().unwrap());
                 Ok(response)
             } else {
                 result

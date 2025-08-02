@@ -1,7 +1,7 @@
 use crate::handlers::user;
 use crate::services::user::UserService;
 use axum::{
-    routing::{delete, get, post, put},
+    routing::{get},
     Router,
 };
 use std::sync::Arc;
