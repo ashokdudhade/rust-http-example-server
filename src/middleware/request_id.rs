@@ -5,6 +5,7 @@ use std::{
     task::{Context, Poll},
 };
 use tower::{Layer, Service};
+use tracing::Span;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -65,13 +66,51 @@ where
             }
         };
 
+        // Create a tracing span that will be active for the entire request
+        let span = tracing::info_span!(
+            "http_request",
+            request_id = %request_id,
+            method = %req.method(),
+            uri = %req.uri(),
+            version = ?req.version(),
+        );
+
         let mut inner = self.inner.clone();
         Box::pin(async move {
-            let mut response = inner.call(req).await?;
-            response
-                .headers_mut()
-                .insert("x-request-id", request_id.parse().unwrap());
-            Ok(response)
+            // Enter the span - all logs within this request will include these fields
+            let _guard = span.enter();
+            
+            tracing::info!("Request started");
+            
+            let start_time = std::time::Instant::now();
+            let result = inner.call(req).await;
+            let duration = start_time.elapsed();
+            
+            match &result {
+                Ok(response) => {
+                    tracing::info!(
+                        status = %response.status(),
+                        duration_ms = %duration.as_millis(),
+                        "Request completed"
+                    );
+                }
+                Err(_) => {
+                    tracing::error!(
+                        duration_ms = %duration.as_millis(),
+                        "Request failed"
+                    );
+                }
+            }
+            
+            // Add request ID to response headers
+            if let Ok(mut response) = result {
+                response
+                    .headers_mut()
+                    .insert("x-request-id", request_id.parse().unwrap());
+                Ok(response)
+            } else {
+                result
+            }
         })
     }
 }

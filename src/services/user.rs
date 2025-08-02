@@ -6,7 +6,7 @@ use crate::domain::{
 };
 use crate::repositories::user::UserRepository;
 use std::sync::Arc;
-use tracing::{info, warn};
+use tracing;
 use uuid::Uuid;
 
 #[derive(Debug)]
@@ -20,35 +20,74 @@ impl UserService {
     }
 
     pub fn create_user(&self, request: CreateUserRequest) -> AppResult<UserResponse> {
+        tracing::info!("Creating new user");
+        
         // Validate request
         request.validate()
-            .map_err(|e| AppError::InvalidInput(e))?;
+            .map_err(|e| {
+                tracing::warn!(error = %e, "User creation validation failed");
+                AppError::InvalidInput(e)
+            })?;
 
         // Create user entity
         let user = User::new(request.name.trim().to_string(), request.email.trim().to_lowercase(), request.age);
 
+        tracing::debug!(user_id = %user.id, email = %user.email, "User entity created");
+
         // Save to repository
         let created_user = self.repository.create(user)?;
 
-        info!("Created new user: {} ({})", created_user.name, created_user.id);
+        tracing::info!(
+            user_id = %created_user.id,
+            user_name = %created_user.name,
+            user_email = %created_user.email,
+            "User created successfully"
+        );
 
         Ok(UserResponse::from(created_user))
     }
 
     pub fn get_user(&self, id: Uuid) -> AppResult<UserResponse> {
+        tracing::debug!(user_id = %id, "Fetching user");
+        
         let user = self.repository.find_by_id(id)?;
+        
+        tracing::info!(
+            user_id = %user.id,
+            user_name = %user.name,
+            "User retrieved successfully"
+        );
+        
         Ok(UserResponse::from(user))
     }
 
     pub fn get_user_profile(&self, id: Uuid) -> AppResult<UserProfileResponse> {
+        tracing::debug!(user_id = %id, "Fetching user profile");
+        
         let user = self.repository.find_by_id(id)?;
+        
+        tracing::info!(
+            user_id = %user.id,
+            user_name = %user.name,
+            "User profile retrieved successfully"
+        );
+        
         Ok(UserProfileResponse::from(user))
     }
 
     pub fn list_users(&self, query: ListUsersQuery) -> AppResult<UsersListResponse> {
+        tracing::debug!(
+            limit = query.limit,
+            offset = query.offset,
+            "Listing users"
+        );
+        
         // Validate query
         query.validate()
-            .map_err(|e| AppError::InvalidInput(e))?;
+            .map_err(|e| {
+                tracing::warn!(error = %e, "User list validation failed");
+                AppError::InvalidInput(e)
+            })?;
 
         // Get all users
         let all_users = self.repository.find_all()?;
@@ -65,6 +104,14 @@ impl UserService {
             .map(UserResponse::from)
             .collect();
 
+        tracing::info!(
+            total_users = total,
+            returned_count = users.len(),
+            offset = offset,
+            limit = limit,
+            "Users listed successfully"
+        );
+
         Ok(UsersListResponse {
             users,
             total,
@@ -74,17 +121,25 @@ impl UserService {
     }
 
     pub fn update_user(&self, id: Uuid, request: UpdateUserRequest) -> AppResult<UserResponse> {
+        tracing::info!(user_id = %id, "Updating user");
+        
         // Validate request
         request.validate()
-            .map_err(|e| AppError::InvalidInput(e))?;
+            .map_err(|e| {
+                tracing::warn!(user_id = %id, error = %e, "User update validation failed");
+                AppError::InvalidInput(e)
+            })?;
 
         if !request.has_updates() {
-            warn!("Update request for user {} has no updates", id);
+            tracing::warn!(user_id = %id, "Update request has no updates");
             return Err(AppError::InvalidInput("No updates provided".to_string()));
         }
 
         // Get existing user
         let mut user = self.repository.find_by_id(id)?;
+        let original_name = user.name.clone();
+        let original_email = user.email.clone();
+        let original_age = user.age;
 
         // Apply updates
         if let Some(name) = request.name {
@@ -100,19 +155,34 @@ impl UserService {
         // Save updated user
         let updated_user = self.repository.update(id, user)?;
 
-        info!("Updated user: {} ({})", updated_user.name, updated_user.id);
+        tracing::info!(
+            user_id = %updated_user.id,
+            user_name = %updated_user.name,
+            user_email = %updated_user.email,
+            original_name = %original_name,
+            original_email = %original_email,
+            original_age = original_age,
+            "User updated successfully"
+        );
 
         Ok(UserResponse::from(updated_user))
     }
 
     pub fn delete_user(&self, id: Uuid) -> AppResult<()> {
+        tracing::info!(user_id = %id, "Deleting user");
+        
         // Verify user exists before deletion
         let user = self.repository.find_by_id(id)?;
         
         // Delete user
         self.repository.delete(id)?;
 
-        info!("Deleted user: {} ({})", user.name, user.id);
+        tracing::info!(
+            user_id = %user.id,
+            user_name = %user.name,
+            user_email = %user.email,
+            "User deleted successfully"
+        );
 
         Ok(())
     }

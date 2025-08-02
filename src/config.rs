@@ -19,6 +19,7 @@ pub struct ServerConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoggingConfig {
     pub level: String,
+    pub json_format: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,6 +68,10 @@ impl Default for AppConfig {
             },
             logging: LoggingConfig {
                 level: std::env::var("APP_LOGGING__LEVEL").unwrap_or_else(|_| "info".to_string()),
+                json_format: std::env::var("APP_LOGGING__JSON_FORMAT")
+                    .unwrap_or_else(|_| "false".to_string())
+                    .parse()
+                    .unwrap_or(false),
             },
             cors: CorsConfig {
                 enabled: std::env::var("APP_CORS__ENABLED")
