@@ -8,26 +8,26 @@ This project follows a clean, layered architecture with clear separation of conc
 
 ```
 src/
-├── main.rs              # Application entry point
-├── config.rs            # Configuration management
-├── domain/              # Domain models and business logic
-│   ├── entities.rs      # Domain entities
-│   ├── errors.rs        # Error types and handling
-│   ├── requests.rs      # Request DTOs with validation
-│   └── responses.rs     # Response DTOs
-├── repositories/        # Data access layer
-│   └── user.rs          # User repository implementation
-├── services/            # Business logic layer
-│   └── user.rs          # User service with business rules
-├── handlers/            # HTTP request handlers
-│   ├── health.rs        # Health check endpoints
-│   └── user.rs          # User CRUD endpoints
-├── routes/              # Route definitions
-│   ├── health.rs        # Health route configuration
-│   └── user.rs          # User route configuration
-├── middleware/          # Custom middleware
-│   └── request_id.rs    # Request ID tracking
-└── utils/               # Shared utilities
+├── main.rs                      # Application entry point
+├── config.rs                    # Configuration management
+├── domain/                      # Domain models and business logic
+│   ├── entities.rs              # Domain entities
+│   ├── errors.rs                # Error types and handling
+│   ├── requests.rs              # Request DTOs with validation
+│   └── responses.rs             # Response DTOs
+├── repositories/                # Data access layer
+│   └── user.rs                  # User repository implementation
+├── services/                    # Business logic layer
+│   └── user.rs                  # User service with business rules
+├── handlers/                    # HTTP request handlers
+│   ├── health.rs                # Health check endpoints
+│   └── user.rs                  # User CRUD endpoints
+├── routes/                      # Route definitions
+│   ├── health.rs                # Health route configuration
+│   └── user.rs                  # User route configuration
+├── middleware/                  # Custom middleware
+│   └── logging_middleware.rs    # Request ID tracking
+└── utils/                       # Shared utilities
 ```
 
 ## 🚀 Features
